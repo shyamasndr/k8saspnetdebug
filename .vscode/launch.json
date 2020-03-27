@@ -1,1 +1,51 @@
-
+{
+    // Use IntelliSense to find out which attributes exist for C# debugging
+    // Use hover for the description of the existing attributes
+    // For further information visit https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger-launchjson.md
+    "version": "0.2.0",
+    "configurations": [
+         {
+             "name": ".Net Core Debug on Kubernetees",
+             "type": "coreclr",
+             "request": "launch",
+             "preLaunchTask": "prepareforkubelaunch",
+             "cwd": "/app/appsource/Debug/netcoreapp3.1/",
+             "program": "./${input:ProjectToExecute}.dll",
+             "sourceFileMap": {
+                "/app/appsource": "${workspaceRoot}/"
+            },
+             "pipeTransport": {
+                 "debuggerPath": "/vsdbg/vsdbg",
+                 "pipeProgram": "/bin/bash",
+                 "pipeCwd": "${workspaceRoot}",
+                 "pipeArgs": [
+                     "-c",
+                     "docker exec -i docker-debug-aspnetcore /vsdbg/vsdbg --interpreter=vscode"
+                 ],
+                 "windows": {
+                     "pipeProgram": "${env:windir}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                     "pipeCwd": "${workspaceRoot}",
+                     "pipeArgs": [
+                          "-c",
+                          "kubectl exec -i",
+                          "$(kubectl get pods --selector='app= ${input:ProjectToExecute} ' -n ${config:eshop-config.kubernetesnamespace} -o jsonpath='{.items[0].metadata.name}')",
+                          "--"
+                     ],
+                     "quoteArgs": false
+                 }
+             }
+         }
+        
+     ],
+     "inputs": [
+        {
+          "id": "ProjectToExecute",
+          "type": "command",
+          "command": "shellCommand.execute",
+          "args": {
+              "command": "powershell.exe -c \"(dir  -Recurse -filter *.csproj .).Directory.Name\"",
+              "cwd": "${workspaceFolder}"
+          }
+        }
+      ]
+ }
