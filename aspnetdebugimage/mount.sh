@@ -7,7 +7,7 @@ DOMAIN=""
                                        
 usage() {                                      # Function: Print a help message.
   echo "Usage: $0  -s SHAREPATH  -l LOCALPATH   -u USERNAME   -p PASSWORD   -d DOMAIN" 1>&2 
-# /bin/bash /app/mount.sh -s "//inblrw325416.vcn.ds.volvo.net/sql2019" -l "/app/appsource" -u [USERNAME] -p [PASSWORD] -d [DOMAIN]
+# /bin/bash /app/mount.sh -s "\\computername\sharename" -l "/app/appsource" -u [USERNAME] -p [PASSWORD] -d [DOMAIN]
 }
 
 exit_abnormal() {                              # Function: Exit with error.
