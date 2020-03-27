@@ -1,0 +1,12 @@
+{
+   
+    "eshop-config" : {
+        "kubernetesnamespace":"default", //namespace where your app is deployed, use default if it is defaulst.
+        "source": {
+            "sharepath":"\\\\COMPUTERNAME\\SHAREPATH", //replace with share name where your vscode worspace is available. 
+            "sharepassword": "[PASSWORD]", //share password
+            "shareuser":"[USERNAME]",//share password
+            "sharedomain":"[DOMAINNAME]" //share domain name
+        }
+    }
+}

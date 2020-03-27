@@ -1,0 +1,208 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "powershell",
+      "type": "shell",
+      "args": [
+        "-c",
+        "dotnet",
+        "build",
+        "(dir  -Recurse -filter *${input:ProjectToExecute}.csproj .).FullName",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "killdotnetprocess",
+      "command": "kubectl",
+      "type": "shell",
+      "problemMatcher": [],
+      "presentation": {
+        "clear": true,
+        "showReuseMessage": false
+      },
+      "args": [
+        {
+          "value": "exec",
+          "quoting": "escape"
+        },
+        {
+          "value": "$(kubectl get pods --selector='app=${input:ProjectToExecute}' -o jsonpath='{.items[0].metadata.name}')",
+          "quoting": "weak"
+        },
+        {
+          "value": "-- /bin/sh -c 'if PID=$(pidof dotnet); then kill $PID; fi'",
+          "quoting": "weak"
+        }
+      ]
+    },
+    {
+      "label": "setupshare",
+      "command": "kubectl",
+      "type": "shell",
+      "problemMatcher": [],
+      "presentation": {
+        // "clear": true,
+        "showReuseMessage": false,
+        // "echo": false,
+        // "reveal": "silent"
+      },
+      "args": [
+        {
+          "value": "exec",
+          "quoting": "weak"
+        },
+        {
+          "value": "$(kubectl get pods --selector='app=${input:ProjectToExecute}' -n ${config:eshop-config.kubernetesnamespace} -o jsonpath='{.items[0].metadata.name}')",
+          "quoting": "weak"
+        },
+        {
+          "value": "-- /bin/bash /app/mount.sh -s ",
+          "quoting": "weak"
+        },
+        {
+          "value": "$(Get-ChildItem -filter bin (Join-Path ${config:eshop-config.source.sharepath} $(Resolve-Path -Relative  $(dir -Recurse -filter ${input:ProjectToExecute} .).FullName))).FullName",
+          "quoting": "weak"
+        },
+        {
+          "value": "-l '/app/appsource' -u ${config:eshop-config.source.shareuser} -p ${config:eshop-config.source.sharepassword} -d ${config:eshop-config.source.sharedomain}",
+          "quoting": "weak"
+        }
+      ]
+    },
+    {
+      "label": "replaceimage",
+      "command": "kubectl",
+      "type": "shell",
+      "problemMatcher": [],
+      "presentation": {
+        // "clear": true,
+        "showReuseMessage": false
+      },
+      "args": [
+        {
+          "value": "patch ",
+          "quoting": "weak"
+        },
+        {
+          "value": "pod/$(kubectl get pods --selector='app=${input:ProjectToExecute} ' -n ${config:eshop-config.kubernetesnamespace} -o jsonpath='{.items[0].metadata.name}')",
+          "quoting": "weak"
+        },
+        {
+          "value": "-n ${config:eshop-config.kubernetesnamespace}  --type='json' -p='[{\"op\": \"replace\", \"path\": \"/spec/containers/0/image\", \"value\": shyamslab/aspnet:3.1.debug }]' ",
+          "quoting": "weak"
+        }
+      ]
+    },
+    {
+      "detail": "This task dosn't work now",
+      "label": "waitfordebugpod",
+      "command": "kubectl",
+      "type": "shell",
+      "problemMatcher": [],
+      "presentation": {
+        // "clear": true,
+        "showReuseMessage": false
+      },
+      "args": [
+        {
+          "value": "wait --for=condition=Ready ",
+          "quoting": "weak"
+        },
+        {
+          "value": "pod/$(kubectl get pods --selector='app=${input:ProjectToExecute}' -n ${config:eshop-config.kubernetesnamespace} -o jsonpath='{.items[0].metadata.name}')",
+          "quoting": "weak"
+        },
+        {
+          "value": "-n ${config:eshop-config.kubernetesnamespace} --timeout=60s ",
+          "quoting": "weak"
+        }
+      ]
+    },
+    {
+      "label": "setupsecurityContext",
+      "command": "kubectl",
+      "type": "shell",
+      "problemMatcher": [],
+      "presentation": {
+        // "clear": true,
+        "showReuseMessage": false
+      },
+      "args": [
+        {
+          "value": "patch ",
+          "quoting": "weak"
+        },
+        {
+          "value": "deployment/$(kubectl get deployment -l='app=${input:ProjectToExecute} ' -n ${config:eshop-config.kubernetesnamespace} -o jsonpath='{.items[0].metadata.name}')",
+          "quoting": "weak"
+        },
+        {
+          "value": "--type='json' -p='[{\"op\": \"add\", \"path\": \"/spec/template/spec/containers/0/securityContext\", \"value\": {\"privileged\": true}}]'",
+          "quoting": "weak"
+        }
+      ]
+    },
+    {
+      "label": "waitfewseconds",
+      "command": "powershell",
+      "type": "shell",
+      "problemMatcher": [],
+      "presentation": {
+        // "clear": true,
+        "showReuseMessage": false
+      },
+      "args": [
+        {
+          "value": "-c  Start-Sleep -s 15 ",
+          "quoting": "weak"
+        }
+      ]
+    },
+    {
+      "label": "preparecontainer",
+      "detail": "Replace container with asp.net debug and create share",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "setupsecurityContext",
+        "waitfewseconds",
+        "replaceimage",
+        "waitfewseconds",
+        "setupshare"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "prepareforkubelaunch",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "build",
+        "killdotnetprocess"
+      ]
+    },
+    {
+      "label": "echo",
+      "type": "shell",
+      "problemMatcher": [],
+      "command": "powershell",
+      "args": [
+        "echo",
+        "$(Get-ChildItem -filter bin (Join-Path ${config:eshop-config.source.sharepath} $(Resolve-Path -Relative  $(dir -Recurse -filter ${input:ProjectToExecute} .).FullName))).FullName"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "ProjectToExecute",
+      "type": "command",
+      "command": "shellCommand.execute",
+      "args": {
+        "command": "powershell.exe -c \"(dir  -Recurse -filter *.csproj .).Directory.Name\"",
+        "cwd": "${workspaceFolder}"
+      }
+    }
+  ]
+}
